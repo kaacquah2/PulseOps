@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  company       String?   // Optional: Company/Organization name
+  phone         String?   // Optional: Phone number for SMS alerts
+  role          String?   // Optional: Job role/position
+  timezone      String?   @default("UTC") // User's timezone for notifications
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  monitors Monitor[]
+  passwordResets PasswordReset[]
+  emailVerifications EmailVerification[]
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Monitor {
+  id                   String   @id @default(cuid())
+  name                 String
+  url                  String
+  type                 String   @default("https")
+  status               String   @default("online")
+  interval             Int      @default(5) // minutes
+  timeout              Int      @default(30) // seconds
+  expectedStatusCode   Int      @default(200)
+  uptime               Float    @default(100.0)
+  averageResponseTime  Float    @default(0)
+  lastChecked          DateTime?
+  enabled              Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  userId               String
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incidents Incident[]
+  metrics   Metric[]
+  alerts    Alert[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Incident {
+  id          String    @id @default(cuid())
+  monitorId   String
+  title       String
+  description String?   @db.Text
+  status      String    @default("open")
+  severity    String    @default("medium")
+  startedAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId])
+  @@index([status])
+}
+
+model Metric {
+  id           String   @id @default(cuid())
+  monitorId    String
+  responseTime Float
+  statusCode   Int?
+  success      Boolean
+  errorMessage String?  @db.Text
+  timestamp    DateTime @default(now())
+
+  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, timestamp])
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  monitorId   String
+  type        String // email, slack, webhook, sms
+  destination String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId])
+}
