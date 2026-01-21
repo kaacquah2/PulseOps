@@ -33,6 +33,10 @@ export async function PATCH(
           userId: session.user.id,
         },
       },
+      select: {
+        id: true,
+        resolvedAt: true,
+      },
     });
 
     if (!incident) {
@@ -47,7 +51,17 @@ export async function PATCH(
     const updatedIncident = await prisma.incident.update({
       where: { id },
       data: updateData,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        severity: true,
+        startedAt: true,
+        resolvedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        monitorId: true,
         monitor: {
           select: {
             id: true,
@@ -74,7 +88,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -85,12 +99,17 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    
+    // Verify ownership with minimal query
     const incident = await prisma.incident.findFirst({
       where: {
         id,
         monitor: {
           userId: session.user.id,
         },
+      },
+      select: {
+        id: true,
       },
     });
 

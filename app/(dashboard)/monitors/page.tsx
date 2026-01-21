@@ -1,34 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { MonitorStatus } from "@/components/dashboard/monitor-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Plus } from "lucide-react";
+import { Activity, Plus, RefreshCw } from "lucide-react";
 import { Monitor } from "@/types";
+import { debounce } from "@/lib/performance";
+
+const initialFormData = {
+  name: "",
+  url: "",
+  type: "https",
+  interval: 5,
+  timeout: 30,
+  expectedStatusCode: 200,
+};
 
 export default function MonitorsPage() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    url: "",
-    type: "https",
-    interval: 5,
-    timeout: 30,
-    expectedStatusCode: 200,
-  });
+  const [formData, setFormData] = useState(initialFormData);
 
-  useEffect(() => {
-    fetchMonitors();
-  }, []);
-
-  async function fetchMonitors() {
+  // Memoized fetch function
+  const fetchMonitors = useCallback(async () => {
     try {
-      const response = await fetch("/api/monitors");
+      const response = await fetch("/api/monitors", {
+        next: { revalidate: 15 }
+      });
+      if (!response.ok) throw new Error("Failed to fetch monitors");
       const data = await response.json();
       setMonitors(data.monitors || []);
     } catch (error) {
@@ -36,9 +40,13 @@ export default function MonitorsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    fetchMonitors();
+  }, [fetchMonitors]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const response = await fetch("/api/monitors", {
@@ -49,20 +57,39 @@ export default function MonitorsPage() {
 
       if (response.ok) {
         setShowCreateForm(false);
-        setFormData({
-          name: "",
-          url: "",
-          type: "https",
-          interval: 5,
-          timeout: 30,
-          expectedStatusCode: 200,
-        });
+        setFormData(initialFormData);
         fetchMonitors();
       }
     } catch (error) {
       console.error("Error creating monitor:", error);
     }
-  }
+  }, [formData, fetchMonitors]);
+
+  // Debounced check function to prevent rapid successive calls
+  const handleCheckAllMonitors = useMemo(
+    () =>
+      debounce(async () => {
+        if (monitors.length === 0) return;
+        
+        setChecking(true);
+        try {
+          const response = await fetch("/api/monitors/check-now", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+
+          if (response.ok) {
+            await fetchMonitors();
+          }
+        } catch (error) {
+          console.error("Error checking monitors:", error);
+        } finally {
+          setChecking(false);
+        }
+      }, 1000),
+    [monitors.length, fetchMonitors]
+  );
 
   if (loading) {
     return (
@@ -81,10 +108,22 @@ export default function MonitorsPage() {
             Manage your monitoring endpoints
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Monitor
-        </Button>
+        <div className="flex gap-2">
+          {monitors.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleCheckAllMonitors}
+              disabled={checking}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />
+              {checking ? 'Checking...' : 'Check All Now'}
+            </Button>
+          )}
+          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Monitor
+          </Button>
+        </div>
       </div>
 
       {showCreateForm && (
@@ -211,7 +250,11 @@ export default function MonitorsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {monitors.map((monitor) => (
-            <MonitorStatus key={monitor.id} monitor={monitor} />
+            <MonitorStatus 
+              key={monitor.id} 
+              monitor={monitor}
+              onCheckComplete={fetchMonitors}
+            />
           ))}
         </div>
       )}

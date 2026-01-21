@@ -25,7 +25,21 @@ export async function GET() {
       where: {
         userId: session.user.id,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        type: true,
+        status: true,
+        interval: true,
+        timeout: true,
+        expectedStatusCode: true,
+        uptime: true,
+        averageResponseTime: true,
+        lastChecked: true,
+        enabled: true,
+        createdAt: true,
+        updatedAt: true,
         incidents: {
           where: {
             status: "open",
@@ -34,6 +48,13 @@ export async function GET() {
           orderBy: {
             createdAt: "desc",
           },
+          select: {
+            id: true,
+            title: true,
+            severity: true,
+            status: true,
+            startedAt: true,
+          },
         },
       },
       orderBy: {
@@ -41,7 +62,15 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ monitors });
+    const response = NextResponse.json({ monitors });
+    
+    // Cache for 15 seconds to reduce database load
+    response.headers.set(
+      "Cache-Control",
+      "private, s-maxage=15, stale-while-revalidate=30"
+    );
+
+    return response;
   } catch (error) {
     console.error("Error fetching monitors:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import { MonitorType } from "@/types";
+import * as SlackNotifications from "@/lib/slack";
 
 interface CheckResult {
   success: boolean;
@@ -177,16 +178,45 @@ export async function recordMetric(
   });
 }
 
+/**
+ * Batch record multiple metrics in a single database operation
+ * Significantly faster than individual inserts
+ */
+export async function recordMetricsBatch(
+  metrics: Array<{ monitorId: string; result: CheckResult }>
+): Promise<void> {
+  if (metrics.length === 0) return;
+
+  await prisma.metric.createMany({
+    data: metrics.map((m) => ({
+      monitorId: m.monitorId,
+      responseTime: m.result.responseTime,
+      statusCode: m.result.statusCode,
+      success: m.result.success,
+      errorMessage: m.result.errorMessage,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 export async function updateMonitorStatus(
   monitorId: string,
   result: CheckResult
 ): Promise<void> {
   const monitor = await prisma.monitor.findUnique({
     where: { id: monitorId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      url: true,
+      status: true,
       metrics: {
         orderBy: { timestamp: "desc" },
         take: 100,
+        select: {
+          success: true,
+          responseTime: true,
+        },
       },
     },
   });
@@ -234,19 +264,93 @@ export async function updateMonitorStatus(
         status: "open",
       },
     });
+
+    // Send Slack notification for new incident
+    try {
+      await SlackNotifications.sendIncidentAlert(
+        monitor.name,
+        monitor.url,
+        result.errorMessage || "Monitor check failed",
+        "high"
+      );
+    } catch (error) {
+      console.error("Failed to send Slack notification:", error);
+    }
   }
 
   // Resolve incidents if monitor is back online
   if (result.success && monitor.status === "offline") {
-    await prisma.incident.updateMany({
+    // Get open incidents before updating them (optimized query)
+    const openIncidents = await prisma.incident.findMany({
       where: {
         monitorId,
         status: "open",
       },
-      data: {
-        status: "resolved",
-        resolvedAt: new Date(),
+      select: {
+        id: true,
+        startedAt: true,
       },
     });
+
+    // Batch update all open incidents
+    if (openIncidents.length > 0) {
+      await prisma.incident.updateMany({
+        where: {
+          monitorId,
+          status: "open",
+        },
+        data: {
+          status: "resolved",
+          resolvedAt: new Date(),
+        },
+      });
+
+      // Send Slack notification for recovery (async, non-blocking)
+      const firstIncident = openIncidents[0];
+      const downtimeDuration = firstIncident.startedAt
+        ? formatDuration(new Date().getTime() - firstIncident.startedAt.getTime())
+        : "Unknown";
+
+      // Fire and forget notification (don't block)
+      SlackNotifications.sendIncidentResolved(
+        monitor.name,
+        monitor.url,
+        downtimeDuration
+      ).catch((error) => {
+        console.error("Failed to send Slack recovery notification:", error);
+      });
+    }
   }
+}
+
+/**
+ * Batch update multiple monitor statuses efficiently
+ */
+export async function updateMonitorStatusesBatch(
+  updates: Array<{ monitorId: string; result: CheckResult }>
+): Promise<void> {
+  if (updates.length === 0) return;
+
+  // Process all updates in parallel
+  await Promise.allSettled(
+    updates.map(({ monitorId, result }) => updateMonitorStatus(monitorId, result))
+  );
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) {
+    return `${days}d ${hours % 24}h ${minutes % 60}m`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  }
+  return `${seconds}s`;
 }

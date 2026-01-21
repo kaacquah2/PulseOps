@@ -64,7 +64,16 @@ export async function GET() {
       totalIncidents,
     };
 
-    return NextResponse.json({ stats });
+    const response = NextResponse.json({ stats });
+    
+    // Add cache headers for better performance
+    // Cache for 30 seconds, allow stale data for 60 seconds while revalidating
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=30, stale-while-revalidate=60"
+    );
+
+    return response;
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     return NextResponse.json(

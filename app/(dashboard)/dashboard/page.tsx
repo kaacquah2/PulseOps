@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { MonitorStatus } from "@/components/dashboard/monitor-status";
 import { IncidentList } from "@/components/dashboard/incident-list";
@@ -13,33 +13,49 @@ export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [statsRes, monitorsRes, incidentsRes] = await Promise.all([
-          fetch("/api/dashboard/stats"),
-          fetch("/api/monitors"),
-          fetch("/api/incidents?status=open"),
-        ]);
+  // Memoized fetch function to prevent unnecessary re-renders
+  const fetchData = useCallback(async () => {
+    try {
+      const [statsRes, monitorsRes, incidentsRes] = await Promise.all([
+        fetch("/api/dashboard/stats", { 
+          // Enable caching in the browser
+          next: { revalidate: 30 } 
+        }),
+        fetch("/api/monitors", { 
+          next: { revalidate: 15 } 
+        }),
+        fetch("/api/incidents?status=open", { 
+          next: { revalidate: 20 } 
+        }),
+      ]);
 
-        const [statsData, monitorsData, incidentsData] = await Promise.all([
-          statsRes.json(),
-          monitorsRes.json(),
-          incidentsRes.json(),
-        ]);
-
-        setStats(statsData.stats);
-        setMonitors(monitorsData.monitors || []);
-        setIncidents(incidentsData.incidents || []);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
+      if (!statsRes.ok || !monitorsRes.ok || !incidentsRes.ok) {
+        throw new Error("Failed to fetch dashboard data");
       }
-    }
 
-    fetchData();
+      const [statsData, monitorsData, incidentsData] = await Promise.all([
+        statsRes.json(),
+        monitorsRes.json(),
+        incidentsRes.json(),
+      ]);
+
+      setStats(statsData.stats);
+      setMonitors(monitorsData.monitors || []);
+      setIncidents(incidentsData.incidents || []);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Memoize sliced arrays to prevent unnecessary re-renders
+  const displayMonitors = useMemo(() => monitors.slice(0, 6), [monitors]);
+  const displayIncidents = useMemo(() => incidents.slice(0, 5), [incidents]);
 
   if (loading) {
     return (
@@ -97,8 +113,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {monitors.slice(0, 6).map((monitor) => (
-              <MonitorStatus key={monitor.id} monitor={monitor} />
+            {displayMonitors.map((monitor) => (
+              <MonitorStatus 
+                key={monitor.id} 
+                monitor={monitor}
+                onCheckComplete={fetchData}
+              />
             ))}
           </div>
         )}
@@ -106,7 +126,7 @@ export default function DashboardPage() {
 
       <div>
         <h2 className="text-2xl font-bold mb-4">Recent Incidents</h2>
-        <IncidentList incidents={incidents.slice(0, 5)} />
+        <IncidentList incidents={displayIncidents} />
       </div>
     </div>
   );

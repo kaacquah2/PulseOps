@@ -5,6 +5,16 @@ import { MonitorType } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * @deprecated This endpoint is deprecated. Use /api/cron/master instead.
+ * 
+ * This endpoint is kept for backward compatibility but is no longer used
+ * by the Vercel cron configuration. The master cron endpoint consolidates
+ * all periodic tasks into a single job to fit within Vercel's free plan
+ * limit of 2 cron jobs.
+ * 
+ * Migration: Update your cron service to call /api/cron/master instead.
+ */
 export async function GET(req: NextRequest) {
   try {
     // Verify cron secret to prevent unauthorized access

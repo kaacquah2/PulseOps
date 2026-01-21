@@ -14,12 +14,14 @@
 - **⏱️ Customizable Intervals**: Configure check intervals from 1-60 minutes
 - **📊 Real-Time Metrics**: Track response times, uptime percentages, and status codes
 - **🎯 Smart Health Checks**: Configurable timeout and expected status code validation
+- **🔄 Automatic & Manual Checks**: Cron-based automatic monitoring + on-demand manual checks
 
 ### Incident Management
 - **🚨 Automatic Incident Creation**: Auto-detect and create incidents when services go down
 - **📝 Incident Tracking**: Full lifecycle management (open → investigating → resolved)
 - **⚡ Severity Levels**: Low, Medium, High, and Critical classifications
 - **🔄 Auto-Resolution**: Automatically resolve incidents when services recover
+- **💬 Multi-Channel Alerts**: Email and Slack notifications for incidents and recoveries
 
 ### Authentication & Security
 - **🔐 NextAuth.js Integration**: Secure authentication with multiple providers
@@ -85,6 +87,13 @@ GOOGLE_SECRET="your-google-oauth-client-secret"
 
 # Cron Secret
 CRON_SECRET="your-cron-secret-random-string"
+
+# Email Notifications (Optional)
+GMAIL_USER="your-email@gmail.com"
+GMAIL_APP_PASSWORD="your-gmail-app-password"
+
+# Slack Notifications (Optional)
+SLACK_BOT_TOKEN="xoxb-your-slack-bot-token"
 ```
 
 Generate a secure `NEXTAUTH_SECRET`:
@@ -149,6 +158,8 @@ pulseops/
 ├── lib/                          # Utility libraries
 │   ├── auth.ts                   # NextAuth configuration
 │   ├── db.ts                     # Prisma client
+│   ├── email.ts                  # Email notification service
+│   ├── slack.ts                  # Slack notification service
 │   ├── utils.ts                  # Helper functions
 │   └── monitoring/
 │       └── check.ts              # Health check logic
@@ -200,6 +211,66 @@ createdb pulseops
 5. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
 6. Copy Client ID and Secret to `.env`
 
+### Notification Configuration
+
+PulseOps supports multiple notification channels for incident alerts:
+
+#### Email Notifications (Gmail)
+
+Configure Gmail SMTP for email alerts:
+
+1. Enable 2-Factor Authentication on your Google Account
+2. Generate an App Password:
+   - Go to Google Account → Security → 2-Step Verification → App passwords
+   - Select "Mail" and "Other" (name it PulseOps)
+   - Copy the 16-character password
+
+3. Add to `.env.local`:
+```env
+GMAIL_USER="your-email@gmail.com"
+GMAIL_APP_PASSWORD="your-16-char-app-password"
+```
+
+#### Slack Notifications
+
+Configure Slack integration for real-time alerts:
+
+1. Create a Slack App:
+   - Go to [api.slack.com/apps](https://api.slack.com/apps)
+   - Click "Create New App" → "From scratch"
+   - Name it "PulseOps" and select your workspace
+
+2. Configure Bot Token Scopes:
+   - Navigate to "OAuth & Permissions"
+   - Add these Bot Token Scopes:
+     - `chat:write` - Send messages
+     - `chat:write.public` - Send messages to public channels
+
+3. Install App to Workspace:
+   - Click "Install to Workspace"
+   - Copy the "Bot User OAuth Token" (starts with `xoxb-`)
+
+4. Invite Bot to Channel:
+   - In Slack, go to your alerts channel (e.g., `#alerts`)
+   - Type `/invite @PulseOps`
+
+5. Add to `.env.local`:
+```env
+SLACK_BOT_TOKEN="xoxb-your-bot-token"
+```
+
+6. Test Integration:
+   - Go to Settings page in PulseOps dashboard
+   - Navigate to "Slack Integration" card
+   - Enter your channel name (e.g., `#alerts`)
+   - Click "Send Test Notification"
+
+**Features:**
+- 🚨 Automatic alerts when monitors go down
+- ✅ Recovery notifications when monitors come back online
+- 📊 Formatted messages with severity levels and downtime duration
+- 🔗 Quick links to dashboard and incident details
+
 ## 📊 Monitoring Setup
 
 ### Creating a Monitor
@@ -216,27 +287,55 @@ createdb pulseops
 
 ### Automated Monitoring
 
-PulseOps uses a cron job to perform automated health checks. Set up the cron:
+PulseOps uses a **unified master cron job** to perform all periodic tasks every 5 minutes:
 
-**Using Vercel Cron:**
-Create `vercel.json`:
+**Tasks Performed:**
+- ⏱️ Monitor health checks (HTTP, TCP, DNS, Ping)
+- 🧹 Database cleanup (removes metrics older than 30 days)
+- 📝 Auto-close resolved incidents (after 7 days)
+
+**Using Vercel Cron (Included):**
+
+The `vercel.json` file is already configured:
 ```json
 {
   "crons": [
     {
-      "path": "/api/cron/check-monitors",
+      "path": "/api/cron/master",
       "schedule": "*/5 * * * *"
     }
   ]
 }
 ```
 
+Just deploy to Vercel - cron is automatically set up! ✅
+
 **Using External Cron Service:**
+
 Configure a service like [cron-job.org](https://cron-job.org) to call:
 ```
-GET https://your-domain.com/api/cron/check-monitors
+GET https://your-domain.com/api/cron/master
 Authorization: Bearer YOUR_CRON_SECRET
 ```
+
+**Note:** The unified cron fits within Vercel's free plan limit (2 cron jobs max). See `CRON_CONFIGURATION.md` for detailed configuration options.
+
+### Manual Monitor Checks
+
+Users can also check monitors on-demand without waiting for the cron job:
+
+**Check All Monitors:**
+- Navigate to `/monitors` page
+- Click "Check All Now" button (top-right)
+- All enabled monitors are checked immediately
+- Perfect for verifying changes after deployment
+
+**Check Individual Monitor:**
+- Click the refresh icon (🔄) on any monitor card
+- That specific monitor is checked instantly
+- Great for testing newly created monitors
+
+See `MANUAL_CHECK_FEATURE.md` for detailed documentation on manual checks.
 
 ## 🔐 API Routes
 
@@ -260,6 +359,13 @@ Authorization: Bearer YOUR_CRON_SECRET
 
 ### Dashboard
 - `GET /api/dashboard/stats` - Get dashboard statistics
+
+### Cron Jobs
+- `GET /api/cron/master` - Master cron job (monitors, cleanup, incidents)
+- `GET /api/cron/check-monitors` - Legacy monitor checks (deprecated)
+
+### Notifications
+- `POST /api/slack/test` - Test Slack integration
 
 ## 🚀 Deployment
 

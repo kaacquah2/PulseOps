@@ -31,7 +31,17 @@ export async function GET(req: NextRequest) {
         ...(status && { status }),
         ...(monitorId && { monitorId }),
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        severity: true,
+        startedAt: true,
+        resolvedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        monitorId: true,
         monitor: {
           select: {
             id: true,
@@ -46,7 +56,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ incidents });
+    const response = NextResponse.json({ incidents });
+    
+    // Cache for 20 seconds for incident lists
+    response.headers.set(
+      "Cache-Control",
+      "private, s-maxage=20, stale-while-revalidate=40"
+    );
+
+    return response;
   } catch (error) {
     console.error("Error fetching incidents:", error);
     return NextResponse.json(
@@ -67,11 +85,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = incidentSchema.parse(body);
 
-    // Verify monitor belongs to user
-    const monitor = await prisma.monitor.findFirst({
+    // Verify monitor belongs to user (minimal query)
+    const monitor = await prisma.monitor.findUnique({
       where: {
         id: data.monitorId,
         userId: session.user.id,
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -81,7 +102,17 @@ export async function POST(req: NextRequest) {
 
     const incident = await prisma.incident.create({
       data,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        severity: true,
+        startedAt: true,
+        resolvedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        monitorId: true,
         monitor: {
           select: {
             id: true,

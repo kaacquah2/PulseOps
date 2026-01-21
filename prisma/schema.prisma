@@ -34,6 +34,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Optimized for user session lookups
 }
 
 model User {
@@ -116,6 +118,9 @@ model Monitor {
 
   @@index([userId])
   @@index([status])
+  @@index([userId, status]) // Optimized for dashboard queries filtering by user and status
+  @@index([userId, enabled]) // Optimized for fetching user's enabled monitors
+  @@index([enabled, interval, lastChecked]) // Optimized for cron job queries
 }
 
 model Incident {
@@ -134,6 +139,8 @@ model Incident {
 
   @@index([monitorId])
   @@index([status])
+  @@index([monitorId, status]) // Optimized for fetching incidents by monitor and status
+  @@index([status, resolvedAt]) // Optimized for cleanup queries (resolved incidents)
 }
 
 model Metric {
@@ -147,7 +154,8 @@ model Metric {
 
   monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 
-  @@index([monitorId, timestamp])
+  @@index([monitorId, timestamp(sort: Desc)]) // Optimized for recent metrics queries
+  @@index([timestamp]) // Optimized for cleanup queries (old metrics)
 }
 
 model Alert {

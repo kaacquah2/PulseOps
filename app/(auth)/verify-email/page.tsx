@@ -5,51 +5,53 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState("");
+  // Initialize state based on token presence
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    token ? "loading" : "error"
+  );
+  const [message, setMessage] = useState(
+    token ? "" : "Invalid or missing verification token"
+  );
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("Invalid or missing verification token");
-      return;
+    // Skip if no token (already handled in initial state)
+    if (!token) return;
+
+    async function verifyEmail() {
+      try {
+        const response = await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setStatus("success");
+          setMessage("Your email has been successfully verified!");
+          setTimeout(() => {
+            router.push("/login?verified=true");
+          }, 2000);
+        } else {
+          setStatus("error");
+          setMessage(data.error || "Failed to verify email");
+        }
+      } catch {
+        setStatus("error");
+        setMessage("Something went wrong. Please try again.");
+      }
     }
 
     verifyEmail();
-  }, [token]);
-
-  async function verifyEmail() {
-    try {
-      const response = await fetch("/api/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus("success");
-        setMessage("Your email has been successfully verified!");
-        setTimeout(() => {
-          router.push("/login?verified=true");
-        }, 2000);
-      } else {
-        setStatus("error");
-        setMessage(data.error || "Failed to verify email");
-      }
-    } catch {
-      setStatus("error");
-      setMessage("Something went wrong. Please try again.");
-    }
-  }
+  }, [token, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">

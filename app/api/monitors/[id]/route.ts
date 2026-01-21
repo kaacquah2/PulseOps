@@ -16,7 +16,7 @@ const monitorUpdateSchema = z.object({
 });
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -27,19 +27,51 @@ export async function GET(
     }
 
     const { id } = await params;
-    const monitor = await prisma.monitor.findFirst({
+    const monitor = await prisma.monitor.findUnique({
       where: {
         id,
         userId: session.user.id,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        type: true,
+        status: true,
+        interval: true,
+        timeout: true,
+        expectedStatusCode: true,
+        uptime: true,
+        averageResponseTime: true,
+        lastChecked: true,
+        enabled: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
         incidents: {
           orderBy: {
             createdAt: "desc",
           },
           take: 10,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            severity: true,
+            startedAt: true,
+            resolvedAt: true,
+            createdAt: true,
+          },
         },
-        alerts: true,
+        alerts: {
+          select: {
+            id: true,
+            type: true,
+            destination: true,
+            enabled: true,
+          },
+        },
       },
     });
 
@@ -47,7 +79,15 @@ export async function GET(
       return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ monitor });
+    const response = NextResponse.json({ monitor });
+    
+    // Cache monitor details for 20 seconds
+    response.headers.set(
+      "Cache-Control",
+      "private, s-maxage=20, stale-while-revalidate=40"
+    );
+
+    return response;
   } catch (error) {
     console.error("Error fetching monitor:", error);
     return NextResponse.json(
@@ -72,10 +112,14 @@ export async function PATCH(
     const body = await req.json();
     const data = monitorUpdateSchema.parse(body);
 
-    const monitor = await prisma.monitor.findFirst({
+    // Verify ownership with minimal query
+    const monitor = await prisma.monitor.findUnique({
       where: {
         id,
         userId: session.user.id,
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -86,6 +130,23 @@ export async function PATCH(
     const updatedMonitor = await prisma.monitor.update({
       where: { id },
       data,
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        type: true,
+        status: true,
+        interval: true,
+        timeout: true,
+        expectedStatusCode: true,
+        uptime: true,
+        averageResponseTime: true,
+        lastChecked: true,
+        enabled: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+      },
     });
 
     return NextResponse.json({ monitor: updatedMonitor });
@@ -103,7 +164,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -114,10 +175,15 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const monitor = await prisma.monitor.findFirst({
+    
+    // Verify ownership with minimal query
+    const monitor = await prisma.monitor.findUnique({
       where: {
         id,
         userId: session.user.id,
+      },
+      select: {
+        id: true,
       },
     });
 
