@@ -76,7 +76,7 @@ Create a `.env` file in the root directory:
 DATABASE_URL="postgresql://user:password@localhost:5432/pulseops?schema=public"
 
 # NextAuth
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://pulse-ops-blue.vercel.app"
 NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
 
 # OAuth Providers (Optional)
@@ -200,16 +200,18 @@ createdb pulseops
 #### GitHub OAuth
 1. Go to GitHub Settings → Developer settings → OAuth Apps
 2. Create a new OAuth App
-3. Set Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
-4. Copy Client ID and Secret to `.env`
+3. Set Homepage URL: `https://pulse-ops-blue.vercel.app`
+4. Set Authorization callback URL: `https://pulse-ops-blue.vercel.app/api/auth/callback/github`
+5. Copy Client ID and Secret to `.env`
 
 #### Google OAuth
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select existing
 3. Enable Google+ API
 4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-6. Copy Client ID and Secret to `.env`
+5. Add authorized JavaScript origin: `https://pulse-ops-blue.vercel.app`
+6. Add authorized redirect URI: `https://pulse-ops-blue.vercel.app/api/auth/callback/google`
+7. Copy Client ID and Secret to `.env`
 
 ### Notification Configuration
 

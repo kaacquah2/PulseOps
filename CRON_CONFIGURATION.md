@@ -180,12 +180,12 @@ Test the cron job manually:
 # Using curl (PowerShell)
 curl -X GET `
   -H "Authorization: Bearer YOUR_CRON_SECRET" `
-  http://localhost:3000/api/cron/master
+  https://pulse-ops-blue.vercel.app/api/cron/master
 
 # Using curl (bash/Linux/Mac)
 curl -X GET \
   -H "Authorization: Bearer YOUR_CRON_SECRET" \
-  http://localhost:3000/api/cron/master
+  https://pulse-ops-blue.vercel.app/api/cron/master
 ```
 
 ### Expected Output

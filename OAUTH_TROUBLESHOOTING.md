@@ -35,7 +35,7 @@ npm run dev
 2. Find your OAuth 2.0 Client ID: `552721878915-5p0emn7gnr775oqt6arjsbn4u648okci`
 3. Check **Authorized redirect URIs** includes:
    ```
-   http://localhost:3000/api/auth/callback/google
+   https://pulse-ops-blue.vercel.app/api/auth/callback/google
    ```
 4. If missing, add it and save
 
@@ -102,12 +102,12 @@ Then restart the server.
 
 ### Test Google OAuth
 1. Restart dev server: `npm run dev`
-2. Go to http://localhost:3000/login
+2. Go to https://pulse-ops-blue.vercel.app/login
 3. Click "Sign in with Google"
 4. Check if the error is resolved
 
 ### Test Email/Password (Always Works)
-1. Go to http://localhost:3000/register
+1. Go to https://pulse-ops-blue.vercel.app/register
 2. Create an account with email/password
 3. Verify your email (check console logs for verification link in dev mode)
 4. Login with credentials
@@ -120,7 +120,7 @@ Then restart the server.
 
 ### Error: "Redirect URI Mismatch"
 - **Cause**: Callback URL not authorized
-- **Fix**: Add `http://localhost:3000/api/auth/callback/google` to authorized URIs
+- **Fix**: Add `https://pulse-ops-blue.vercel.app/api/auth/callback/google` to authorized URIs
 
 ### Error: "Access Blocked"
 - **Cause**: App not verified by Google
@@ -142,12 +142,14 @@ Then restart the server.
 
 **Google OAuth:**
 - Client ID: `your-google-oauth-client-id.apps.googleusercontent.com`
-- Callback URL: `http://localhost:3000/api/auth/callback/google`
+- Authorized JavaScript origin: `https://pulse-ops-blue.vercel.app`
+- Authorized redirect URI: `https://pulse-ops-blue.vercel.app/api/auth/callback/google`
 - Status: ✅ Configured with explicit endpoints & 10s timeout
 
 **GitHub OAuth:**
 - Client ID: `your-github-oauth-client-id`
-- Callback URL: `http://localhost:3000/api/auth/callback/github`
+- Homepage URL: `https://pulse-ops-blue.vercel.app`
+- Callback URL: `https://pulse-ops-blue.vercel.app/api/auth/callback/github`
 - Status: ✅ Configured with 10s timeout
 
 **Email/Password:**
@@ -157,18 +159,20 @@ Then restart the server.
 
 For production deployment (Vercel, Railway, etc.):
 
-1. Update callback URLs to production domain:
-   ```
-   https://your-domain.com/api/auth/callback/google
-   https://your-domain.com/api/auth/callback/github
-   ```
+1. Update GitHub OAuth App settings:
+   - Homepage URL: `https://your-domain.com`
+   - Authorization callback URL: `https://your-domain.com/api/auth/callback/github`
 
-2. Update `NEXTAUTH_URL` in production environment:
+2. Update Google OAuth credentials:
+   - Authorized JavaScript origin: `https://your-domain.com`
+   - Authorized redirect URI: `https://your-domain.com/api/auth/callback/google`
+
+3. Update `NEXTAUTH_URL` in production environment:
    ```env
    NEXTAUTH_URL=https://your-domain.com
    ```
 
-3. OAuth timeouts are less common in production (better network)
+4. OAuth timeouts are less common in production (better network)
 
 ## Need Help?
 

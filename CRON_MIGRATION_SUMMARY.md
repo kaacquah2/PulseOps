@@ -93,7 +93,7 @@ Your cron jobs have been consolidated into a single **master cron endpoint** to 
 # Test the new master cron endpoint
 curl -X GET `
   -H "Authorization: Bearer YOUR_CRON_SECRET" `
-  http://localhost:3000/api/cron/master
+  https://pulse-ops-blue.vercel.app/api/cron/master
 ```
 
 ### Expected Response

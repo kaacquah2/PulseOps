@@ -45,15 +45,34 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.pool = pool;
 }
 
-// Graceful shutdown handler for production
-if (process.env.NODE_ENV === "production") {
+// Graceful shutdown handler (only for non-serverless environments)
+// In serverless environments like Vercel, connection cleanup is handled automatically
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+if (process.env.NODE_ENV === "production" && !isServerless) {
+  let isShuttingDown = false;
+  
   const cleanup = async () => {
-    await pool.end();
-    await prisma.$disconnect();
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    
+    try {
+      await prisma.$disconnect();
+      // Only end the pool if it hasn't been ended already
+      if (!pool.ended) {
+        await pool.end();
+      }
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
   };
 
-  process.on("SIGTERM", cleanup);
-  process.on("SIGINT", cleanup);
+  // Remove existing listeners to prevent duplicates
+  process.removeAllListeners("SIGTERM");
+  process.removeAllListeners("SIGINT");
+  
+  process.once("SIGTERM", cleanup);
+  process.once("SIGINT", cleanup);
 }
 
 export default prisma;

@@ -286,7 +286,7 @@ DATABASE_URL='postgresql://...'
 
 # Auth
 NEXTAUTH_SECRET="..."
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://pulse-ops-blue.vercel.app"
 
 # OAuth
 GOOGLE_ID=253420420470-...

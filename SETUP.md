@@ -68,7 +68,7 @@ Create a `.env` file in the root directory:
 DATABASE_URL="postgresql://user:password@host:5432/database"
 
 # Required: NextAuth Configuration
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://pulse-ops-blue.vercel.app"
 NEXTAUTH_SECRET="run: openssl rand -base64 32"
 
 # Optional: OAuth Providers
@@ -119,8 +119,8 @@ This will create the following tables:
 2. Click "New OAuth App"
 3. Fill in the details:
    - **Application name**: PulseOps Local
-   - **Homepage URL**: `http://localhost:3000`
-   - **Authorization callback URL**: `http://localhost:3000/api/auth/callback/github`
+   - **Homepage URL**: `https://pulse-ops-blue.vercel.app`
+   - **Authorization callback URL**: `https://pulse-ops-blue.vercel.app/api/auth/callback/github`
 4. Click "Register application"
 5. Copy the Client ID and generate a Client Secret
 6. Add to your `.env`:
@@ -137,9 +137,10 @@ This will create the following tables:
 4. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
 5. Configure OAuth consent screen if prompted
 6. Select "Web application"
-7. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-8. Copy the Client ID and Client Secret
-9. Add to your `.env`:
+7. Add authorized JavaScript origin: `https://pulse-ops-blue.vercel.app`
+8. Add authorized redirect URI: `https://pulse-ops-blue.vercel.app/api/auth/callback/google`
+9. Copy the Client ID and Client Secret
+10. Add to your `.env`:
    ```env
    GOOGLE_ID="your_client_id"
    GOOGLE_SECRET="your_client_secret"
@@ -151,11 +152,11 @@ This will create the following tables:
 npm run dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000)
+The application will be available at [https://pulse-ops-blue.vercel.app](https://pulse-ops-blue.vercel.app)
 
 ### 7. Create Your First Account
 
-1. Navigate to [http://localhost:3000](http://localhost:3000)
+1. Navigate to [https://pulse-ops-blue.vercel.app](https://pulse-ops-blue.vercel.app)
 2. Click "Get Started" or "Sign Up"
 3. Fill in your details:
    - Name
@@ -184,7 +185,7 @@ The application will be available at [http://localhost:3000](http://localhost:30
 For development, you can manually trigger the monitoring check:
 
 ```bash
-curl -X GET http://localhost:3000/api/cron/check-monitors \
+curl -X GET https://pulse-ops-blue.vercel.app/api/cron/check-monitors \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 

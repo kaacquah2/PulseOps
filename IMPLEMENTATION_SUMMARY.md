@@ -354,7 +354,7 @@ npx prisma generate
 Create a `.env` file with:
 ```env
 DATABASE_URL="postgresql://..."
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://pulse-ops-blue.vercel.app"
 NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
 CRON_SECRET="random-string"
 ```
@@ -365,7 +365,7 @@ npm run dev
 ```
 
 ### 5. Create Your First Account
-- Go to http://localhost:3000
+- Go to https://pulse-ops-blue.vercel.app
 - Click "Get Started"
 - Register with email/password
 
