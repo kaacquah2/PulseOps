@@ -2,7 +2,7 @@
 
 ## Current Configuration
 
-The cron job has been configured for **hourly checks** (`0 * * * *`) to comply with Vercel's Hobby plan limitations.
+The cron job has been configured for **daily checks** (`0 0 * * *`) to comply with Vercel's Hobby plan limitations.
 
 ### Vercel Plan Limits:
 
@@ -15,22 +15,7 @@ The cron job has been configured for **hourly checks** (`0 * * * *`) to comply w
 
 Since Vercel Hobby plan requires daily intervals, here are your options:
 
-### Option 1: Hourly Checks (Current)
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/master",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
-```
-- **Frequency**: Every hour
-- **Good for**: Basic monitoring needs
-- **Limitation**: Less frequent than 5-minute checks
-
-### Option 2: Daily Checks (Most Conservative)
+### Option 1: Daily Checks (Current - Hobby Plan Requirement)
 ```json
 {
   "crons": [
@@ -42,23 +27,9 @@ Since Vercel Hobby plan requires daily intervals, here are your options:
 }
 ```
 - **Frequency**: Once per day at midnight UTC
-- **Good for**: Light monitoring, testing
+- **Good for**: Light monitoring, testing, backup for external cron
 - **Limitation**: Only checks once every 24 hours
-
-### Option 3: Multiple Daily Checks
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/master",
-      "schedule": "0 0,12 * * *"
-    }
-  ]
-}
-```
-- **Frequency**: Twice per day (midnight and noon UTC)
-- **Good for**: Moderate monitoring
-- **Note**: Check if this is allowed on Hobby plan
+- **Status**: ✅ This is what's currently configured
 
 ## Alternative Solutions
 
@@ -132,24 +103,27 @@ This works great with less frequent automated checks.
 
 ## Current Setup Impact
 
-With hourly checks instead of 5-minute checks:
+With daily checks instead of 5-minute checks:
 
-| Aspect | 5-Minute Checks | Hourly Checks | Impact |
+| Aspect | 5-Minute Checks | Daily Checks | Impact |
 |--------|----------------|---------------|---------|
-| Checks per day | 288 | 24 | Detection delay +55 min avg |
-| Early detection | Excellent | Good | Acceptable for most use cases |
-| Database load | Higher | Lower | Better for free tier |
-| API costs | Higher | Lower | Better for free tier |
+| Checks per day | 288 | 1 | Detection delay up to 24 hours |
+| Early detection | Excellent | Poor | **External cron required** |
+| Database load | Higher | Minimal | Great for free tier |
+| API costs | Higher | Minimal | Great for free tier |
+
+**⚠️ Important**: Daily checks are NOT suitable for production monitoring. You MUST use an external cron service for real-time monitoring.
 
 ## Recommendations
 
 **For Development/Testing:**
-- Use hourly checks via Vercel cron
+- Use daily checks via Vercel cron (current config)
 - Supplement with manual checks when needed
+- Consider external cron for more frequent testing
 
 **For Production (Free Tier):**
-1. Use external cron service (cron-job.org) for 5-minute checks
-2. Keep Vercel cron as backup (hourly)
+1. **REQUIRED**: Use external cron service (cron-job.org) for 5-minute checks
+2. Keep Vercel cron as backup (daily - already configured)
 3. Enable manual check feature for on-demand testing
 
 **For Production (Paid):**
@@ -179,17 +153,29 @@ With hourly checks instead of 5-minute checks:
 
 ## Configuration Changes Made
 
-- Changed `vercel.json` from `*/5 * * * *` to `0 * * * *` (hourly)
-- This complies with Vercel Hobby plan requirements
+- Changed `vercel.json` from `*/5 * * * *` to `0 0 * * *` (daily at midnight UTC)
+- This complies with Vercel Hobby plan **strict requirement** of max once-per-day
 - All monitoring functionality remains intact
+- **You MUST set up external cron for production use**
 - Manual check feature allows on-demand testing
 
 ## Next Steps
 
-Choose one of these approaches:
-1. ✅ Keep hourly checks (already configured)
-2. 🌟 Set up external cron service for 5-minute checks (recommended)
-3. 💰 Upgrade to Vercel Pro plan
-4. 🔧 Use GitHub Actions workflow
+**For Production Deployment, you MUST do ONE of these:**
 
-Your monitoring system is production-ready with any of these options!
+1. 🌟 **Set up external cron service** (REQUIRED for Hobby plan - see instructions above)
+   - Vercel cron runs daily as fallback only
+   - External service provides real 5-minute monitoring
+   
+2. 💰 **Upgrade to Vercel Pro** ($20/month)
+   - Unlock any cron frequency
+   - Update vercel.json back to `*/5 * * * *`
+   
+3. 🔧 **Use GitHub Actions** (Free alternative)
+   - See workflow example above
+   - Same reliability as external cron
+
+**Current Status:**
+- ✅ Vercel config: Daily cron (compliant with Hobby plan)
+- ⚠️ NOT suitable for production without external cron
+- ✅ Manual checks available for testing
